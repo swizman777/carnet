@@ -1,0 +1,10 @@
+attestation: 1
+commit: ce8beadf122508d4b35392613d0f0488b71d0ee3
+arbre: ed712235c9ed429c20da8e53a1055cb7087a0082
+manifeste: sha256:3e8acf1b08ce28245ea669b83a50c4bf63babd45c8e9d62adb8e12d99c86226d
+controles: 4 (complet)
+relecture: ignoree
+branche: installation
+livrable: main
+depot: projects__carnet
+date: 2026-09-02T18:12:24Z
