@@ -1,0 +1,121 @@
+#!/data/data/com.termux/files/usr/bin/bash
+#
+# carnet — un carnet de notes en ligne de commande.
+#
+# TROIS DECISIONS, prises a la premiere tache parce qu'elles bloquaient, et
+# consignees ici avec leur raison plutot que dans un coin du contrat.
+#
+# 1. LES NOTES VIVENT HORS DU DEPOT, dans $CARNET_DIR (par defaut
+#    ~/.local/share/carnet). Ce sont des DONNEES, pas du code : les versionner
+#    melangerait l'historique de l'outil et celui de son contenu, et un carnet
+#    qui grossit ferait echouer les captures de la station — le prevol de
+#    snapshot refuse au-dela de 100 Mio par fichier. La variable existe surtout
+#    pour que le harnais puisse ecrire ailleurs : un test ne doit jamais
+#    toucher le vrai carnet.
+#
+# 2. UNE NOTE S'AJOUTE, elle ne se modifie pas. Un carnet qu'on peut reecrire
+#    en silence perd ce qui fait sa valeur — la trace de ce qu'on pensait a ce
+#    moment-la. Se tromper et ajouter un correctif est plus honnete que
+#    d'effacer. `carnet retire` viendra si le besoin se presente, et il devra
+#    laisser une trace.
+#
+# 3. LA RECHERCHE EST UN GREP, sans index. Un index doit etre maintenu, se
+#    desynchronise, et devient faux au pire moment. A la taille d'un carnet
+#    humain — quelques milliers de notes — la recherche lineaire est
+#    instantanee. On changera le jour ou une mesure le demandera, pas avant.
+#
+#   carnet ajoute <texte...>   ajoute une note (ou lit l'entree standard)
+#   carnet liste [n]           les n dernieres notes (defaut 20)
+#   carnet cherche <motif>     les notes contenant le motif (insensible a la casse)
+#   carnet chemin              ou est le carnet
+#
+# Codes : 0 fait ; 1 rien trouve ou echec ; 2 usage.
+#
+set -uo pipefail
+
+: "${CARNET_DIR:=$HOME/.local/share/carnet}"
+FICHIER="$CARNET_DIR/notes.md"
+
+erreur() { printf 'carnet: %s\n' "$1" >&2; }
+
+usage() {
+  sed -n '/^#   carnet/,/^#$/p' "$0" | sed 's/^# \{0,1\}//'
+  exit 2
+}
+
+ouvrir() {
+  mkdir -p "$CARNET_DIR" 2>/dev/null \
+    || { erreur "$CARNET_DIR inaccessible"; exit 1; }
+  [ -f "$FICHIER" ] || printf '# Carnet\n\n' > "$FICHIER"
+}
+
+ajouter() {
+  local texte
+  if [ $# -gt 0 ]; then
+    texte="$*"
+  elif [ ! -t 0 ]; then
+    texte=$(cat)          # `carnet ajoute < fichier`, ou au bout d'un tube
+  else
+    usage
+  fi
+  [ -n "${texte//[[:space:]]/}" ] || { erreur "note vide, rien ajoute"; exit 1; }
+
+  ouvrir
+  # Verrou : deux terminaux, une session ssh et un tmux peuvent ecrire en meme
+  # temps. Un `>>` concurrent entrelacerait deux notes multi-lignes — et une
+  # note a moitie ecrite est pire qu'une note perdue, parce qu'on la croit
+  # entiere. Meme discipline que le moteur de sauvegarde de la station.
+  exec 9>>"$FICHIER" || { erreur "ecriture impossible dans $FICHIER"; exit 1; }
+  flock 9 || { erreur "verrou impossible"; exit 1; }
+  printf '\n## %s\n\n%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$texte" >&9
+  exec 9>&-
+  printf 'carnet: note ajoutee (%s)\n' "$FICHIER"
+}
+
+# Les notes sont separees par leur en-tete `## <horodatage>`. awk decoupe
+# dessus plutot que sur les lignes : une note tient en plusieurs lignes, et la
+# decouper en afficherait des moities.
+lister() {
+  local n="${1:-20}"
+  case "$n" in ''|*[!0-9]*) usage ;; esac
+  [ -f "$FICHIER" ] || { erreur "carnet vide ($FICHIER)"; exit 1; }
+  awk -v n="$n" '
+    /^## /{ i++; bloc[i] = $0 "\n"; next }
+    i > 0 { bloc[i] = bloc[i] $0 "\n" }
+    END {
+      if (i == 0) exit 1
+      debut = (i - n + 1); if (debut < 1) debut = 1
+      for (k = debut; k <= i; k++) printf "%s", bloc[k]
+    }' "$FICHIER" || { erreur "aucune note"; exit 1; }
+}
+
+chercher() {
+  [ $# -gt 0 ] || usage
+  [ -f "$FICHIER" ] || { erreur "carnet vide ($FICHIER)"; exit 1; }
+  local motif="$*"
+  # Le motif est passe a awk comme DONNEE (-v m), jamais concatene dans le
+  # texte du programme : un motif contenant une accolade ou un guillemet
+  # casserait le programme genere, et le message parlerait de syntaxe awk au
+  # lieu de recherche.
+  #
+  # Le code de sortie vaut 1 quand rien ne correspond, comme grep : « rien
+  # trouve » n'est pas une panne, et un appelant doit pouvoir faire la
+  # difference.
+  awk -v m="$motif" '
+    BEGIN { IGNORECASE = 1; n = 0 }
+    /^## /{ if (garde) { printf "%s", bloc; n++ } bloc = $0 "\n"; garde = 0
+            if (tolower($0) ~ tolower(m)) garde = 1; next }
+    { bloc = bloc $0 "\n"; if (tolower($0) ~ tolower(m)) garde = 1 }
+    END { if (garde) { printf "%s", bloc; n++ }
+          exit (n > 0 ? 0 : 1) }' "$FICHIER"
+}
+
+cas="${1:-}"; [ $# -gt 0 ] && shift
+case "$cas" in
+  ajoute|ajouter)   ajouter "$@" ;;
+  liste|lister)     lister "$@" ;;
+  cherche|chercher) chercher "$@" ;;
+  chemin)           printf '%s\n' "$FICHIER" ;;
+  ""|aide|-h|--help) usage ;;
+  *) erreur "commande inconnue : $cas"; usage ;;
+esac

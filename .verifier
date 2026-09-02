@@ -1,0 +1,23 @@
+# Manifeste de controle de carnet.
+#
+# Deux niveaux, et le second est celui qui compte. `bash -n` dit qu'un fichier
+# est syntaxiquement valide ; il ne dit RIEN de son comportement. Une porte qui
+# s'arreterait la donnerait la sensation du controle sans la substance.
+#
+# Cibles ENUMEREES a la main : ajouter un fichier au projet ne le met pas sous
+# controle, le declarer ici est une action deliberee. En revanche `verifier`
+# refuse toute cible declaree puis disparue, ce qui rattrape les renommages.
+
+cible bin/carnet
+cible t/comportement
+
+par-fichier bash -n
+
+# Le controle de comportement : 13 cas, dont le critere du contrat mot pour
+# mot. Il ecrit dans un CARNET_DIR temporaire — un test ne doit jamais toucher
+# le vrai carnet.
+global ./t/comportement
+
+# Plus aucun commit direct sur main : le travail passe par une branche, puis
+# par `promouvoir`, qui verifie et attache l'attestation.
+branche-livrable main

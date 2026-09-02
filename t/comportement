@@ -1,0 +1,74 @@
+#!/data/data/com.termux/files/usr/bin/bash
+#
+# t/comportement — le controle qui rend la porte de ce projet non triviale.
+#
+# `bash -n` dit qu'un fichier est syntaxiquement valide. Il ne dit RIEN de son
+# comportement. Une porte qui s'arreterait la donnerait la sensation du
+# controle sans en avoir la substance — le mode d'echec que la station guette.
+#
+# Chaque cas ecrit dans un CARNET_DIR temporaire : un test ne doit jamais
+# toucher le vrai carnet. C'est la meme discipline que BACKUP_DIR, JOURNAL et
+# REGISTRE ailleurs sur cette station, ou cette famille de fuite s'est produite
+# cinq fois.
+#
+set -uo pipefail
+
+CARNET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)/bin/carnet"
+ECHECS=0
+V=$'\e[32m'; R=$'\e[31m'; N=$'\e[0m'
+
+ok()  { printf '  %s[ OK ]%s %s\n' "$V" "$N" "$1"; }
+ko()  { printf '  %s[FAIL]%s %s\n' "$R" "$N" "$1"; ECHECS=$((ECHECS+1)); }
+cas() { local l="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$l"; else ko "$l"; fi; }
+refus() { local l="$1"; shift; if "$@" >/dev/null 2>&1; then ko "$l (accepte au lieu de refuser)"; else ok "$l"; fi; }
+
+T=$(mktemp -d) || exit 1
+trap 'rm -rf "$T"' EXIT
+export CARNET_DIR="$T/carnet"
+
+printf 'carnet : comportement\n'
+
+# LE CRITERE DU CONTRAT, mot pour mot : « carnet ajoute "essai" puis carnet
+# liste affiche essai ». Tout le reste de ce fichier existe parce que ce seul
+# cas ne suffirait pas a rendre la porte honnete.
+cas "ajoute une note"            "$CARNET" ajoute "essai"
+cas "liste affiche la note"      bash -c '"$1" liste | grep -qx essai' _ "$CARNET"
+
+cas "chemin sous CARNET_DIR"     bash -c '[ "$("$1" chemin)" = "$CARNET_DIR/notes.md" ]' _ "$CARNET"
+
+# Une note multi-lignes doit ressortir ENTIERE. Un decoupage ligne a ligne
+# afficherait des moities de notes sans jamais echouer.
+printf 'ligne un\nligne deux\n' | "$CARNET" ajoute >/dev/null 2>&1
+cas "note multi-lignes conservee entiere" \
+  bash -c '"$1" liste | grep -qx "ligne un" && "$1" liste | grep -qx "ligne deux"' _ "$CARNET"
+
+cas "cherche trouve"             bash -c '"$1" cherche essai | grep -qx essai' _ "$CARNET"
+cas "cherche insensible a la casse" bash -c '"$1" cherche ESSAI | grep -qx essai' _ "$CARNET"
+refus "cherche sans resultat rend 1" "$CARNET" cherche introuvable-xyz
+
+# Un motif contenant des caracteres speciaux d'awk ne doit pas casser le
+# programme : il est passe en donnee, pas concatene dans son texte.
+refus "motif a accolades ne casse pas la recherche" "$CARNET" cherche '{x}'
+
+refus "note vide refusee"        "$CARNET" ajoute "   "
+refus "commande inconnue refusee" "$CARNET" nawak
+refus "liste avec un argument non numerique refusee" "$CARNET" liste douze
+
+# liste N : le N doit borner. Sans ce cas, `liste 1` pourrait tout afficher
+# sans que rien ne le signale.
+"$CARNET" ajoute "troisieme" >/dev/null 2>&1
+cas "liste 1 ne rend qu'une note" \
+  bash -c '[ "$("$1" liste 1 | grep -c "^## ")" -eq 1 ]' _ "$CARNET"
+
+# Le carnet reel ne doit jamais avoir ete touche : c'est le cas qui protege
+# l'utilisateur du harnais lui-meme.
+cas "aucune ecriture hors du repertoire de test" \
+  bash -c '[ ! -e "$HOME/.local/share/carnet/notes.md" ] || [ "$HOME/.local/share/carnet/notes.md" -ot "$1" ]' _ "$T"
+
+printf '\n'
+if [ "$ECHECS" -eq 0 ]; then
+  printf '%s%d cas, aucun echec%s\n' "$V" 13 "$N"
+else
+  printf '%s%d cas en echec%s\n' "$R" "$ECHECS" "$N"
+fi
+[ "$ECHECS" -eq 0 ]
