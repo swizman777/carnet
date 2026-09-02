@@ -1,0 +1,10 @@
+attestation: 1
+commit: 052e9d1f2b7f33688824f435cc21b6502000c261
+arbre: 808492e78b3a769c6ead68b80e0d673ab84b565a
+manifeste: sha256:97d27c6511e7afb79747ce14ebabbcdd505b6a4517df07a09ae2802ddb654f1b
+controles: 3 (complet)
+relecture: 4 blocant(s) (silent-failure-hunter,code-reviewer)
+branche: premiere-note
+livrable: main
+depot: projects__carnet
+date: 2026-09-02T18:08:35Z
