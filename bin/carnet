@@ -26,7 +26,8 @@
 #
 #   carnet ajoute <texte...>   ajoute une note (ou lit l'entree standard)
 #   carnet liste [n]           les n dernieres notes (defaut 20)
-#   carnet cherche <motif>     les notes contenant le motif (insensible a la casse)
+#   carnet cherche <motif>     les notes contenant le motif, LITTERALEMENT
+#                              (insensible a la casse ; ni joker ni regex)
 #   carnet chemin              ou est le carnet
 #
 # Codes : 0 fait ; 1 rien trouve ou echec ; 2 usage.
@@ -93,19 +94,27 @@ chercher() {
   [ $# -gt 0 ] || usage
   [ -f "$FICHIER" ] || { erreur "carnet vide ($FICHIER)"; exit 1; }
   local motif="$*"
-  # Le motif est passe a awk comme DONNEE (-v m), jamais concatene dans le
-  # texte du programme : un motif contenant une accolade ou un guillemet
-  # casserait le programme genere, et le message parlerait de syntaxe awk au
-  # lieu de recherche.
+  # RECHERCHE LITTERALE, par index() et non par ~. Le motif etait compare comme
+  # une EXPRESSION REGULIERE alors que l'aide et le README promettaient « les
+  # notes contenant le motif ». Deux consequences, toutes deux verifiees par
+  # execution apres que le relecteur adverse les a nommees :
   #
-  # Le code de sortie vaut 1 quand rien ne correspond, comme grep : « rien
-  # trouve » n'est pas une panne, et un appelant doit pouvoir faire la
-  # difference.
+  #   carnet cherche 'e.sai'  trouvait « essai »       — le point faisait joker
+  #   carnet cherche '['      sortait en 2             — regex invalide, et 2
+  #                                                       est le code « usage »
+  #
+  # Le second est le plus vicieux : une recherche cassee rendait le meme code
+  # qu'une faute de frappe dans la commande, sans un mot d'explication. index()
+  # supprime la classe entiere plutot que d'en rattraper les symptomes — il n'y
+  # a plus de motif invalide, puisqu'il n'y a plus de motif interprete.
+  #
+  # Si une recherche par expression reguliere devient utile, elle prendra un
+  # drapeau explicite. Personne ne l'a demandee.
   awk -v m="$motif" '
-    BEGIN { IGNORECASE = 1; n = 0 }
+    BEGIN { m = tolower(m); n = 0 }
     /^## /{ if (garde) { printf "%s", bloc; n++ } bloc = $0 "\n"; garde = 0
-            if (tolower($0) ~ tolower(m)) garde = 1; next }
-    { bloc = bloc $0 "\n"; if (tolower($0) ~ tolower(m)) garde = 1 }
+            if (index(tolower($0), m)) garde = 1; next }
+    { bloc = bloc $0 "\n"; if (index(tolower($0), m)) garde = 1 }
     END { if (garde) { printf "%s", bloc; n++ }
           exit (n > 0 ? 0 : 1) }' "$FICHIER"
 }

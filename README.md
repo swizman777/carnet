@@ -8,7 +8,7 @@ carnet ajoute "réunion déplacée à jeudi"
 carnet ajoute < brouillon.txt      # ou au bout d'un tube
 carnet liste                       # les 20 dernières
 carnet liste 5
-carnet cherche jeudi               # insensible à la casse, rend 1 si rien
+carnet cherche jeudi               # littéral, insensible à la casse, rend 1 si rien
 carnet chemin
 ```
 
@@ -30,7 +30,14 @@ format.
 ce qui fait sa valeur : la trace de ce qu'on pensait à ce moment-là. Se tromper
 et ajouter un correctif est plus honnête qu'effacer.
 
-**Il n'indexe pas.** `cherche` est un parcours linéaire. Un index doit être
+**Il ne cherche pas par expression régulière.** `cherche` compare
+littéralement : `e.sai` ne trouve pas « essai ». C'est ce que l'aide promettait
+depuis le début, mais le code comparait comme une regex — un motif contenant
+`[` faisait sortir le programme en 2, le code réservé aux erreurs d'usage, sans
+un mot d'explication. Défaut nommé par la relecture adverse et confirmé par
+exécution.
+
+**Il n’indexe pas.** `cherche` est un parcours linéaire. Un index doit être
 maintenu, se désynchronise, et devient faux au pire moment. À la taille d'un
 carnet humain, la recherche est instantanée — on changera le jour où une mesure
 le demandera, pas avant.
@@ -45,7 +52,7 @@ perdue, parce qu'on la croit entière**.
 ## Développer
 
 ```sh
-./t/comportement     # 13 cas, dans un CARNET_DIR temporaire
+./t/comportement     # 16 cas, dans un CARNET_DIR temporaire
 verifier             # la porte : syntaxe + comportement
 ```
 
