@@ -10,6 +10,7 @@
 
 cible bin/carnet
 cible t/comportement
+cible installe
 
 par-fichier bash -n
 

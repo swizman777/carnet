@@ -1,0 +1,42 @@
+#!/data/data/com.termux/files/usr/bin/bash
+#
+# installe — rend `carnet` disponible partout, par un LIEN et non une copie.
+#
+# POURQUOI UN LIEN. Les outils de GestProjet sont copies dans ~/bin parce que
+# les jobs Android les appellent par chemin absolu : un lien casse par un depot
+# deplace suspendrait les captures EN SILENCE. `carnet` n'est appele par aucun
+# job — il est tape par un humain. Le compromis s'inverse donc :
+#
+#   une copie devient PERIMEE sans le dire : on lance l'ancienne version en
+#   croyant lancer la nouvelle. C'est le pire des deux echecs.
+#   un lien casse echoue BRUYAMMENT : « No such file or directory », et on sait
+#   immediatement quoi reparer.
+#
+# CONSEQUENCE A CONNAITRE : le lien suit le REPERTOIRE DE TRAVAIL, donc la
+# branche courante. Pendant qu'on developpe sur une branche, `carnet` est la
+# version de cette branche — ce qui est en general ce qu'on veut, et ce qui se
+# lit dans `git branch`.
+#
+set -euo pipefail
+
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/bin/carnet"
+DST="$HOME/bin/carnet"
+
+[ -x "$SRC" ] || { printf 'installe: %s introuvable\n' "$SRC" >&2; exit 1; }
+mkdir -p "$HOME/bin"
+
+# Un fichier REEL a cet emplacement n'est pas ecrase sans trace : ce pourrait
+# etre un autre carnet, ecrit a la main il y a longtemps.
+if [ -e "$DST" ] && [ ! -L "$DST" ]; then
+  mv "$DST" "$DST.bak.$(date +%Y%m%d-%H%M%S)"
+  printf 'installe: fichier existant sauvegarde -> %s.bak.*\n' "$DST" >&2
+fi
+
+ln -sfn "$SRC" "$DST"
+printf 'installe: %s -> %s\n' "$DST" "$SRC"
+
+case ":$PATH:" in
+  *":$HOME/bin:"*) printf 'installe: ~/bin est dans le PATH, `carnet` est pret\n' ;;
+  *) printf 'installe: ~/bin ABSENT du PATH — ajouter dans ~/.bashrc :\n' >&2
+     printf '          export PATH="$HOME/bin:$PATH"\n' >&2 ;;
+esac

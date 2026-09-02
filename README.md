@@ -12,6 +12,26 @@ carnet cherche jeudi               # littéral, insensible à la casse, rend 1 s
 carnet chemin
 ```
 
+## Installer
+
+```sh
+./installe        # lien ~/bin/carnet -> ce dépôt
+```
+
+Un **lien**, pas une copie, et le compromis est inversé par rapport aux outils
+de GestProjet. Ceux-là sont copiés parce que les jobs Android les appellent par
+chemin absolu : un lien cassé suspendrait les captures *en silence*. `carnet`
+n'est appelé par aucun job — il est tapé par un humain :
+
+- une **copie** devient périmée sans le dire : on lance l'ancienne version en
+  croyant lancer la nouvelle ;
+- un **lien cassé** échoue bruyamment, et on sait quoi réparer.
+
+Conséquence à connaître : le lien suit le répertoire de travail, donc la
+branche courante. Pendant qu'on développe sur une branche, `carnet` est la
+version de cette branche — ce qui est en général ce qu'on veut, et ce qui se
+lit dans `git branch`.
+
 ## Où sont les notes
 
 `$CARNET_DIR/notes.md`, par défaut `~/.local/share/carnet/notes.md`.
@@ -52,7 +72,7 @@ perdue, parce qu'on la croit entière**.
 ## Développer
 
 ```sh
-./t/comportement     # 16 cas, dans un CARNET_DIR temporaire
+./t/comportement     # 17 cas, dans un CARNET_DIR temporaire
 verifier             # la porte : syntaxe + comportement
 ```
 

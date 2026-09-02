@@ -75,9 +75,21 @@ cas "liste 1 ne rend qu'une note" \
 cas "aucune ecriture hors du repertoire de test" \
   bash -c '[ ! -e "$HOME/.local/share/carnet/notes.md" ] || [ "$HOME/.local/share/carnet/notes.md" -ot "$1" ]' _ "$T"
 
+# L'installation, si elle a eu lieu : un lien PERIME pointerait vers un autre
+# depot, et on lancerait une version qu'on ne relit plus. Absent, ce n'est pas
+# une faute — tout le monde n'installe pas.
+if [ -L "$HOME/bin/carnet" ]; then
+  cible=$(readlink -f "$HOME/bin/carnet")
+  [ "$cible" = "$(readlink -f "$CARNET")" ] \
+    && ok "~/bin/carnet pointe sur CE depot" \
+    || ko "~/bin/carnet pointe ailleurs : $cible"
+elif [ -e "$HOME/bin/carnet" ]; then
+  ko "~/bin/carnet est une COPIE, elle se perimera en silence (./installe)"
+fi
+
 printf '\n'
 if [ "$ECHECS" -eq 0 ]; then
-  printf '%s%d cas, aucun echec%s\n' "$V" 16 "$N"
+  printf '%s%d cas, aucun echec%s\n' "$V" 17 "$N"
 else
   printf '%s%d cas en echec%s\n' "$R" "$ECHECS" "$N"
 fi
