@@ -1,7 +1,7 @@
 # Fiche d'identite de carnet — la moitie que seul un humain peut ecrire.
 # Le reste se mesure : gp fiche carnet
 nom: carnet
-objet: a definir
-langage: a definir
-etat: idee
+objet: un carnet de notes en ligne de commande
+langage: shell
+etat: specifie
 depuis: 2026-09-02
