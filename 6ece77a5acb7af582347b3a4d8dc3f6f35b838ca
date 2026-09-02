@@ -1,0 +1,10 @@
+attestation: 1
+commit: 6ece77a5acb7af582347b3a4d8dc3f6f35b838ca
+arbre: 1f2e6dd295432d263cb0e747f2247ef9251f1d72
+manifeste: sha256:97d27c6511e7afb79747ce14ebabbcdd505b6a4517df07a09ae2802ddb654f1b
+controles: 3 (complet)
+relecture: ignoree
+branche: motif-litteral
+livrable: main
+depot: projects__carnet
+date: 2026-09-02T18:10:21Z
